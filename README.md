@@ -1,35 +1,62 @@
+<div align="center">
+
 # 🔬 Daily Paper Search Agent
 
-A daily-running Python agent that searches **Arxiv**, **BioArxiv**, and **PubMed** for the last 24 hours of publications, uses an **LLM** (OpenAI API or local LM Studio) to evaluate each paper, and exports two types of **Obsidian-compatible Markdown** notes.
+**Automatically fetches, scores, and summarizes the latest biomedical preprints and publications — every day.**
+
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue?logo=python)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Sources](https://img.shields.io/badge/sources-Arxiv%20%7C%20BioArxiv%20%7C%20PubMed-orange)]()
+[![LLM](https://img.shields.io/badge/LLM-LM%20Studio%20%7C%20OpenAI%20%7C%20DeepSeek-purple)]()
+[![Obsidian](https://img.shields.io/badge/export-Obsidian%20Markdown-7C3AED?logo=obsidian)]()
+
+</div>
 
 ---
+
+A Python agent that runs daily, searches **Arxiv**, **BioArxiv**, and **PubMed** for the past 24 hours, uses an **LLM** (local or cloud) to evaluate each paper's importance, and exports structured **Obsidian-compatible Markdown** notes — automatically, every morning.
 
 ## ✨ Features
 
-| Feature | Details |
-|---|---|
-| **3 sources** | Arxiv, BioArxiv, PubMed (last 24 h) |
-| **6 default topics** | Tumor metabolism, TME, Spatial Transcriptomics, multi-omic, medical agents, AI in medicine |
-| **LLM Pass 1** | Keywords, importance score (1–5 ⭐), short summary — for every paper |
-| **LLM Pass 2** | Key findings + discussion — only for papers scored 4–5 |
-| **Daily digest** | `YYYY-MM-DD_paper_digest.md` with all papers, grouped by source |
-| **Individual notes** | One `.md` per high-score paper (4–5), with full analysis |
-| **Wiki-links** | Digest links `[[...]]` to individual notes automatically |
-| **Daily scheduling** | Shell script + cron setup for hands-free daily runs |
+- 🔍 **3 sources in parallel** — Arxiv, BioArxiv, PubMed (last 24 h, configurable)
+- 🧬 **6 default research topics** — Tumor metabolism, TME, Spatial Transcriptomics, multi-omic, medical agents, AI in medicine
+- 🤖 **LLM two-pass analysis**:
+  - **Pass 1 (all papers):** keywords · importance score (1–5 ⭐) · summary
+  - **Pass 2 (score 4–5 only):** key findings · discussion of implications
+- 🗒️ **Two Obsidian exports per run:**
+  - `Daily Papers/YYYY-MM-DD_paper_digest.md` — full digest, grouped by source
+  - `Papers/YYYY-MM-DD_title.md` — individual deep-dive per high-impact paper
+- 🔗 **Auto wiki-links** — digest entries link `[[...]]` to individual notes
+- ⏰ **Cron-ready** — shell script + one-liner crontab setup
+- 🔑 **Strict scoring rubric** — calibrated to keep scores 4–5 genuinely rare (~15%)
 
----
+## 🗂️ Project Structure
 
-## 🚀 Setup
+```
+paper_search_agent/
+├── agent.py              # Main orchestrator (CLI entry point)
+├── config.py             # .env config loader
+├── search_arxiv.py       # Arxiv search (official Python client)
+├── search_biorxiv.py     # BioArxiv search (REST API + local keyword filter)
+├── search_pubmed.py      # PubMed search (NCBI Entrez / Biopython)
+├── llm_analyzer.py       # LLM two-pass analysis
+├── export_obsidian.py    # Obsidian .md export
+├── run_daily.sh          # Cron wrapper script
+├── requirements.txt
+├── .env.example          # ← copy this to .env and fill in
+└── README.md
+```
 
-### 1. Install dependencies
+## 🚀 Quick Start
+
+### 1. Clone & install
 
 ```bash
-cd paper_search_agent
+git clone https://github.com/phymium/paper-search-agent.git
+cd paper-search-agent
 
-# Create a virtual environment (recommended)
 python3 -m venv .venv
 source .venv/bin/activate
-
 pip install -r requirements.txt
 ```
 
@@ -37,149 +64,130 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
+# Edit .env with your favourite editor
 ```
 
-Open `.env` and fill in:
+Key settings in `.env`:
 
 | Variable | Required | Description |
 |---|---|---|
 | `SEARCH_TOPICS` | ✅ | Comma-separated topics to monitor |
-| `LLM_MODE` | ✅ | `lmstudio` or `openai` |
-| `LMSTUDIO_BASE_URL` | if LM Studio | Default: `http://localhost:1234/v1` |
-| `LMSTUDIO_MODEL` | if LM Studio | Name of model loaded in LM Studio |
-| `OPENAI_API_KEY` | if OpenAI | Your API key |
-| `OPENAI_MODEL` | if OpenAI | e.g. `gpt-4o-mini` |
+| `LLM_MODE` | ✅ | `lmstudio` · `openai` · `deepseek` |
 | `PUBMED_EMAIL` | ✅ | Your email (NCBI requirement) |
 | `OBSIDIAN_VAULT_PATH` | ✅ | Absolute path to your daily digest folder |
 | `OBSIDIAN_PAPERS_PATH` | ✅ | Absolute path to your individual papers folder |
+| `NCBI_API_KEY` | ⬜ | Optional — raises PubMed rate limit 3→10 req/s |
 
-> **LM Studio** — Make sure a model is loaded and the local server is running (`http://localhost:1234`).
+**LLM backend options:**
 
-### 3. Set up Obsidian folders
+| `LLM_MODE` | Required keys | Notes |
+|---|---|---|
+| `lmstudio` | `LMSTUDIO_BASE_URL`, `LMSTUDIO_MODEL` | Local server at `localhost:1234` |
+| `openai` | `OPENAI_API_KEY`, `OPENAI_MODEL` | e.g. `gpt-4o-mini` |
+| `deepseek` | `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL` | e.g. `deepseek-chat` (V3) or `deepseek-reasoner` (R1) |
 
-Create two folders in your Obsidian vault:
-```
-📂 YourVault/
-├── 📁 Daily Papers/    ← paste path into OBSIDIAN_VAULT_PATH
-└── 📁 Papers/          ← paste path into OBSIDIAN_PAPERS_PATH
-```
-
----
-
-## ▶️ Running manually
+### 3. Run
 
 ```bash
-# Run with topics from .env
+# Full run (fetch → LLM → export to Obsidian)
 python agent.py
 
 # Override topics for this run
 python agent.py --topics "CRISPR, spatial transcriptomics"
 
-# Fetch only — no LLM, no export (quick test)
+# Dry-run: fetch only, no LLM or export (quick connectivity test)
 python agent.py --dry-run
 
 # Look back 3 days instead of 1
 python agent.py --days 3
-
-# Also save raw JSON output
-python agent.py --output-json /tmp/papers.json
 ```
 
----
+### 4. Schedule daily (cron)
 
-## 🕗 Scheduling daily runs (cron)
-
-Make the script executable:
 ```bash
 chmod +x run_daily.sh
-```
-
-Open your crontab:
-```bash
 crontab -e
 ```
 
 Add this line to run every day at **08:00**:
 ```
-0 8 * * * /Users/zhanaoxu/Desktop/TianyouYun/paper_search_agent/run_daily.sh
+0 8 * * * /path/to/paper_search_agent/run_daily.sh
 ```
 
 Logs are written to `/tmp/paper_agent_YYYY-MM-DD.log`.
 
-> **Note:** If you use a virtual environment and cron, the `run_daily.sh` script handles `source .venv/bin/activate` automatically.
+## 📄 Output Format
 
----
-
-## 📄 Output File Structure
-
-### Daily Digest — `YYYY-MM-DD_paper_digest.md`
+### Daily Digest (`YYYY-MM-DD_paper_digest.md`)
 
 ```markdown
 ---
 tags: [paper-digest, daily]
 date: 2026-03-13
-topics: [Tumor metabolism, ...]
-total_papers: 42
-high_impact_papers: 5
+topics: [Tumor metabolism, Spatial Transcriptomics, ...]
+total_papers: 38
+high_impact_papers: 4
 ---
 # 📄 Daily Paper Digest — 2026-03-13
-## 🧬 PUBMED (15 papers)
-### [Title](url)
-**Keywords:** `kw1`, `kw2`  |  **Importance:** ⭐⭐⭐⭐⭐ 5/5 — rationale
-**Summary:** … → [[2026-03-13_title_slug]]   ← wiki-links to individual notes
-...
+
+## 🧬 PUBMED (14 papers)
+
+### [Metabolic reprogramming drives immunosuppression in TME](url)
+**Keywords:** `glycolysis`, `lactate`, `T-cell exhaustion`, ...
+**Importance:** ⭐⭐⭐⭐ 4/5 — First mechanistic link between...
+**Summary:** … → [[2026-03-13_metabolic_reprogramming_tme]]
 ```
 
-### Individual Paper Note — `YYYY-MM-DD_title_slug.md` (score 4–5 only)
+### Individual Paper Note (`Papers/YYYY-MM-DD_title.md`, score 4–5 only)
 
 ```markdown
 ---
 tags: [paper, high-impact, pubmed]
-importance: 5
+importance: 4
 ---
-# 📄 Paper Title
+# 📄 Metabolic reprogramming drives immunosuppression in TME
+
 ## 🔑 Keywords
-`tumor metabolism`, `glycolysis`, ...
+`glycolysis`, `lactate`, `T-cell exhaustion` ...
+
 ## ⭐ Importance
-⭐⭐⭐⭐⭐ 5/5
-> Rationale sentence
-## 📝 Summary
+⭐⭐⭐⭐ 4/5 — First mechanistic link between...
+
+## 📝 Summary  |  ## 🔬 Key Findings  |  ## 💬 Discussion
 ...
-## 🔬 Key Findings
-- Finding 1
-- Finding 2
-## 💬 Discussion
-Implications, limitations, future directions...
-## 📄 Abstract
-> Full abstract
 ```
 
----
+## ⚙️ Scoring Rubric
 
-## 🛠 Project Structure
+The LLM uses a strict calibrated rubric to prevent score inflation:
 
-```
-paper_search_agent/
-├── agent.py              # Main orchestrator
-├── config.py             # .env loader
-├── search_arxiv.py       # Arxiv search
-├── search_biorxiv.py     # BioArxiv search
-├── search_pubmed.py      # PubMed search
-├── llm_analyzer.py       # LLM analysis (Pass 1 + Pass 2)
-├── export_obsidian.py    # Obsidian .md export
-├── run_daily.sh          # Cron wrapper script
-├── requirements.txt
-├── .env.example          # Config template
-└── README.md
-```
+| Score | Criteria | Expected % |
+|---|---|---|
+| 1 | Routine / replication / small cohort | ~20% |
+| 2 | Modest contribution, limited novelty | ~20% |
+| 3 | Meaningful advance within expected research | ~45% |
+| 4 | Surprising mechanistic insight, validated target, field-changing method | ~12% |
+| 5 | Paradigm-shifting, likely widely cited within a year | ~3% |
 
----
+Only papers scoring **4 or 5** receive individual deep-dive notes.
 
 ## 📦 Dependencies
 
-- [`arxiv`](https://pypi.org/project/arxiv/) — Arxiv Python client
-- [`biopython`](https://biopython.org/) — PubMed via NCBI Entrez
-- [`openai`](https://pypi.org/project/openai/) — LLM calls (OpenAI or LM Studio)
-- [`python-dotenv`](https://pypi.org/project/python-dotenv/) — `.env` config loading
-- [`rich`](https://github.com/Textualize/rich) — Beautiful terminal output
-- [`requests`](https://requests.readthedocs.io/) — BioArxiv REST API
+| Package | Purpose |
+|---|---|
+| [`arxiv`](https://pypi.org/project/arxiv/) | Arxiv Python client |
+| [`biopython`](https://biopython.org/) | PubMed via NCBI Entrez |
+| [`openai`](https://pypi.org/project/openai/) | LLM calls (OpenAI / DeepSeek / LM Studio) |
+| [`python-dotenv`](https://pypi.org/project/python-dotenv/) | `.env` config loading |
+| [`rich`](https://github.com/Textualize/rich) | Terminal output |
+| [`requests`](https://requests.readthedocs.io/) | BioArxiv REST API |
+
+## 📝 License
+
+MIT — free to use, modify, and share.
+
+---
+
+<div align="center">
+Made for researchers who want to stay on top of the literature — without spending hours on it.
+</div>
