@@ -1,0 +1,6 @@
+arxiv>=2.1.0
+requests>=2.31.0
+biopython>=1.83
+openai>=1.17.0
+python-dotenv>=1.0.0
+rich>=13.7.0
